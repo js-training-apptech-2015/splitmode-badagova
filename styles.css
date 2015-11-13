@@ -1,0 +1,48 @@
+.base{
+  display: flex;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.field {
+  text-align: center;  
+  margin: auto;
+}
+
+.scoreField{
+  text-align: center;
+  margin: auto;
+}
+
+.fieldTable{
+  border-width: medium;
+  width: 27vw;
+  height: 27vw;  
+}
+
+.cell{
+  text-align: center;
+  vertical-align: middle;
+  height: 9vw;
+  width: 9vw;
+  font-size: 50pt;
+}
+
+.score{
+  font-size: 30pt;
+  font-style: italic;
+ }
+.points div{
+  display: inline;
+  text-align: center;
+}
+
+#player1, #player2{
+  font-size: 20pt;
+}
+
+#score1, #score2{
+  margin: 15px;
+}
