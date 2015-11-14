@@ -53,9 +53,6 @@ function moves(evnt){
 }
 
 function count(){
-  /*if((Math.abs(cells[0]+cells[1]+cells[2])==3)&&
-  	 (Math.abs(cells[3]+cells[4]+cells[5])==3)&&
-  	 (Math.abs(cells[6]+cells[7]+cells[8])==3))*/
   var row = Math.floor(lastMove/3),
       column = lastMove%3;
   
