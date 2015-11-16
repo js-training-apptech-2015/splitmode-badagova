@@ -22,7 +22,7 @@ function clearField(){ // prepeares field for new round
   } else {
     $("#player2").css("background-color", "yellow");
     $("#player1").css("background-color", "white");
-    computerEvent();
+    //computerEvent();
   }
 }
 
