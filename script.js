@@ -7,11 +7,6 @@ var cells, // array contain cells of the game field
     first; // shows who did first move in current round;
 
 $(document).ready(newGame);
-$(".cell").on("click", onePlayerMoves);
-$("#menu__newgame").on("click", newGame);
-$("#menu__oneplayer").on("click", changeModeOnePlayer);
-$("#menu__twoplayers").on("click", changeModeTwoPlayers);
-$("body").on("computersTurn", computerEvent);
 
 function clearField(){ // prepeares field for new round
   $(".cell").empty();
@@ -27,11 +22,16 @@ function clearField(){ // prepeares field for new round
   } else {
     $("#player2").css("background-color", "yellow");
     $("#player1").css("background-color", "white");
-    $("body").triggerHandler("computersTurn");
+    computerEvent();
   }
 }
 
 function newGame(){
+  $(".cell").on("click", onePlayerMoves);
+  $("#menu__newgame").on("click", newGame);
+  $("#menu__oneplayer").on("click", changeModeOnePlayer);
+  $("#menu__twoplayers").on("click", changeModeTwoPlayers);
+  //$(document).on("computersTurn", computerEvent);
   first = false;
   clearField();
   $("#score1").text("0");
@@ -83,13 +83,17 @@ function onePlayerMoves(evnt){ //is game logic for one player mode
   	  freeCells.splice(freeCells.indexOf(Number(this.id)),1); // removes number of last move from array of available cells
       $("#player2").css("background-color", "yellow");
       $("#player1").css("background-color", "white");
-      $("body").triggerHandler("computersTurn");
+      var tr = checkWinner();
+      if (!tr){
+        computerEvent();
+      }
     }
   }
 }
 
 function computerEvent(evnt){
-  if(!checkWinner()){ // if player didn't win computer make a move
+  //evnt.stopPropagation();
+  // if player didn't win computer make a move
     $("#player1").css("background-color", "yellow");
     $("#player2").css("background-color", "white");
     computerMove();
@@ -97,7 +101,6 @@ function computerEvent(evnt){
     moveCounter++;
     checkWinner();
   }
-}
 
 function computerMove(){ // logic for computer moves
   var nextMove, // index of possible next move in cells array
