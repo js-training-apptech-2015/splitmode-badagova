@@ -3,10 +3,13 @@ var cells, // array contain cells of the game field
     lastMove, // cell number where last move was made
     moveCounter, // total amount of moves were made from start a current round
     points1, points2, // player's points in currernt game
+    mode,
+    first,
     turn;  // shows who does next move
 
 $(document).ready(newGame);
 $(".field-table__cell").on("click", onePlayerMoves);
+mode = true;
 $(".menu__item_new-game").on("click", newGame);
 $(".menu__item_one-player").on("click", changeModeOnePlayer);
 $(".menu__item_two-players").on("click", changeModeTwoPlayers);
@@ -14,7 +17,8 @@ $(".menu__item_two-players").on("click", changeModeTwoPlayers);
 
 function clearField(){ // prepeares field for new round
   $(".field-table__cell").empty();
-  turn = true;
+  first = !first;
+  turn = first;
   cells = [0,0,0,0,0,0,0,0,0];  
   freeCells = [0,1,2,3,4,5,6,7,8];
   moveCounter = 0;
@@ -25,10 +29,14 @@ function clearField(){ // prepeares field for new round
   } else {
     $(".points__elem_second-player-name").css("background-color", "yellow");
     $(".points__elem_first-player-name").css("background-color", "white");
+    if (mode) {
+      setTimeout(onePlayerMoves,0);
+    }
   }
 }
 
 function newGame(){
+  first = false;
   clearField();
   $(".points__elem_first-player-points").text("0");
   $(".points__elem_second-player-points").text("0");
@@ -39,12 +47,14 @@ function newGame(){
 function changeModeTwoPlayers(evnt){
   $(".field-table__cell").off("click", onePlayerMoves);
   $(".field-table__cell").on("click", twoPlayersMoves);
+  mode = false;
   newGame();
 }
 
 function changeModeOnePlayer(evnt){
   $(".field-table__cell").off("click", twoPlayersMoves);
   $(".field-table__cell").on("click", onePlayerMoves);
+  mode = true;
   newGame();
 }
 
@@ -75,6 +85,7 @@ function twoPlayersMoves(evnt){ //is game logic for two players mode
 function onePlayerMoves(evnt){ //is game logic for one player mode
   var win = false;
   lastMove = Number(this.id);
+  if (turn){
     if (cells[lastMove]===0){ // checks if the current cell isn't occupied
       cells[Number(this.id)]=1; // saves '1' in current cell, if player made move
   	  $(evnt.target).text("X");
@@ -95,8 +106,14 @@ function onePlayerMoves(evnt){ //is game logic for one player mode
       } else {
         showWinner();
       }
-
-   }
+    }
+  } else {
+    computerMove();
+    $(".points__elem_first-player-name").css("background-color", "yellow");
+    $(".points__elem_second-player-name").css("background-color", "white");
+    turn = true;
+    moveCounter++; 
+  }
 }
 function computerMove(){ // logic for computer moves
   var nextMove, // index of possible next move in cells array
