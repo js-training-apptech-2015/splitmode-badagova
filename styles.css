@@ -6,6 +6,10 @@
   align-items: center;
 }
 
+.menu-item_invisible{
+  visibility: hidden;
+}
+
 .field {
   text-align: center;  
   margin: auto;

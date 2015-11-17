@@ -4,16 +4,51 @@ var cells, // array contain cells of the game field
     moveCounter, // total amount of moves were made from start a current round
     points1, points2, // player's points in currernt game
     mode,
+    level,
     first,
     turn;  // shows who does next move
 
 $(document).ready(newGame);
-$(".field-table__cell").on("click", onePlayerMoves);
-mode = true;
+$(".field-table__cell").on("click", twoPlayersMoves);
+mode = false;
 $(".menu__item_new-game").on("click", newGame);
 $(".menu__item_one-player").on("click", changeModeOnePlayer);
 $(".menu__item_two-players").on("click", changeModeTwoPlayers);
+$(".menu__item_easy").on("click", easyLevel);
+$(".menu__item_medium").on("click", mediumLevel);
+$(".menu__item_hard").on("click", hardLevel);
 
+function changeModeTwoPlayers(evnt){
+  $(".field-table__cell").off("click", onePlayerMoves);
+  $(".field-table__cell").on("click", twoPlayersMoves);
+  $(".menu-item_invisible").css("visibility", "hidden");
+  mode = false;
+  newGame();
+}
+
+function changeModeOnePlayer(evnt){
+  $(".field-table__cell").off("click", twoPlayersMoves);
+  $(".field-table__cell").on("click", onePlayerMoves);
+  $(".menu-item_invisible").css("visibility", "visible");
+  level = 2;
+  mode = true;
+  newGame();
+}
+
+function easyLevel(evnt){
+  newGame();
+  level = 1;
+}
+
+function mediumLevel(evnt){
+  newGame();
+  level = 2;
+}
+
+function hardLevel(evnt){
+  newGame();
+  level = 3;
+}
 
 function clearField(){ // prepeares field for new round
   $(".field-table__cell").empty();
@@ -42,20 +77,6 @@ function newGame(){
   $(".points__elem_second-player-points").text("0");
   points1 = 0;
   points2 = 0;
-}
-
-function changeModeTwoPlayers(evnt){
-  $(".field-table__cell").off("click", onePlayerMoves);
-  $(".field-table__cell").on("click", twoPlayersMoves);
-  mode = false;
-  newGame();
-}
-
-function changeModeOnePlayer(evnt){
-  $(".field-table__cell").off("click", twoPlayersMoves);
-  $(".field-table__cell").on("click", onePlayerMoves);
-  mode = true;
-  newGame();
 }
 
 function twoPlayersMoves(evnt){ //is game logic for two players mode
@@ -95,7 +116,20 @@ function onePlayerMoves(evnt){ //is game logic for one player mode
       $(".points__elem_second-player-name").css("background-color", "yellow");
       $(".points__elem_first-player-name").css("background-color", "white");
       if (!checkWinner()){ // check if the player is a winner, else computer will move
-        computerMove();
+        switch (level){
+          case 1: {
+            computerMoveEasy();
+            break;
+          }
+          case 2: {
+            computerMoveMedium();
+            break;
+          }
+          case 3: {
+            computerMoveHard();
+            break;
+          }
+        }
         $(".points__elem_first-player-name").css("background-color", "yellow");
         $(".points__elem_second-player-name").css("background-color", "white");
         turn = true;
@@ -108,16 +142,69 @@ function onePlayerMoves(evnt){ //is game logic for one player mode
       }
     }
   } else {
-    computerMove();
+    switch (level){
+      case 1: {
+        computerMoveEasy();
+        break;
+      }
+      case 2: {
+        computerMoveMedium();
+        break;
+      }
+      case 3: {
+        computerMoveHard();
+        break;
+      }
+    }
     $(".points__elem_first-player-name").css("background-color", "yellow");
     $(".points__elem_second-player-name").css("background-color", "white");
     turn = true;
     moveCounter++; 
   }
 }
-function computerMove(){ // logic for computer moves
+
+function computerMoveEasy(){
+  var cellId, 
+      nextMove = Math.floor(Math.random()*(9-moveCounter));
+  cells[freeCells[nextMove]] = -1; // saves '-1' in current cell, if computer made move
+  lastMove = freeCells[nextMove];
+  cellId = "#" + freeCells[nextMove];
+  $(cellId).text("0");
+  freeCells.splice(nextMove,1);
+}
+
+function computerMoveMedium(){ // logic for computer moves
+  var nextMove = computerBaseLogic(), // index of possible next move in cells array
+      cellId; // string contains the id of cell for jQuery
+  cells[freeCells[nextMove]] = -1; // saves '-1' in current cell, if computer made move
+  lastMove = freeCells[nextMove];
+  cellId = "#" + freeCells[nextMove];
+  $(cellId).text("0");
+  freeCells.splice(nextMove,1);
+}
+
+function computerMoveHard(){
   var nextMove, // index of possible next move in cells array
-      cellId, // string contains the id of cell for jQuery
+      cellId; // string contains the id of cell for jQuery
+  if ((moveCounter < 2)&&(cells[4] == 0)){ // checks if the central cell is free
+    nextMove = freeCells.indexOf(4); // occupies the central cell
+  } else if (moveCounter < 3) { // checks counter of moves, if less then 3 cells are occupied, there are no two X in a row/column/diagonel
+    do {                        // occupies one of the corner
+        nextMove = Math.floor(Math.random()*5)*2; // returns cell #0,2,4,6 or 8, but 4 is already occupied because of first computer move
+      } while(cells[nextMove] != 0); // if target cell is free, finish the loop
+      nextMove = freeCells.indexOf(nextMove); // gets the index of future move in array of free cells (made for compatibility)
+  } else {
+    nextMove = computerBaseLogic(); // if more then two X are in a field, use base logic 
+  }
+  cells[freeCells[nextMove]] = -1; // saves '-1' in current cell, if computer made move
+  lastMove = freeCells[nextMove];
+  cellId = "#" + freeCells[nextMove];
+  $(cellId).text("0");
+  freeCells.splice(nextMove,1);
+}
+
+function computerBaseLogic(){
+  var nextMove,
       row = Math.floor(lastMove/3), //number of row where last move was made
       column = lastMove%3; //number of column where last move was made
   switch (true){ 
@@ -177,56 +264,56 @@ function computerMove(){ // logic for computer moves
     }
     case (cells[0]+cells[4]+cells[8]===-2):{ // if the first diagonal has two "0"
       for (var i = 0; i <= 8; i+=4) {        // make the next move in this diagonal in available cell
-  	  	if (cells[i]===0){
-  	  		nextMove = freeCells.indexOf(i);
-  	  		break;
-  	  	}
-  	  }
-  	 break;
+        if (cells[i]===0){
+          nextMove = freeCells.indexOf(i);
+          break;
+        }
+      }
+     break;
     }
     case (cells[2]+cells[4]+cells[6]===-2):{ // if the second diagonal has two "0"
       for (var i = 2; i <= 6; i+=2) {        // make the next move in this diagonal in available cell
-  	  	if (cells[i]===0){
-  	  		nextMove = freeCells.indexOf(i);
-  	  		break;
-  	  	}
-  	  }
+        if (cells[i]===0){
+          nextMove = freeCells.indexOf(i);
+          break;
+        }
+      }
       break; 
     } 
     case (cells[row*3]+cells[row*3+1]+cells[row*3+2]===2):{ // if there is row with two "X"
-  	  for (var i = row*3; i <= row*3+2; i++) {              
-  	  	if (cells[i]===0){
-  	  		nextMove = freeCells.indexOf(i);
-  	  		break;
-  	  	}
-  	  }
-  	  break;
+      for (var i = row*3; i <= row*3+2; i++) {              
+        if (cells[i]===0){
+          nextMove = freeCells.indexOf(i);
+          break;
+        }
+      }
+      break;
     }
     case (cells[column]+cells[column+3]+cells[column+6]===2):{ // if there is column with two "X"
-  	  for (var i = column; i <= column+6; i+=3) {
-  	  	if (cells[i]===0){
-  	  		nextMove = freeCells.indexOf(i);
-  	  		break;
-  	  	}
-  	  }
-  	  break;
+      for (var i = column; i <= column+6; i+=3) {
+        if (cells[i]===0){
+          nextMove = freeCells.indexOf(i);
+          break;
+        }
+      }
+      break;
     }
     case (cells[0]+cells[4]+cells[8]===2):{ //if the first diagonal has two "0"
-  	  for (var i = 0; i <= 8; i+=4) {
-  	  	if (cells[i]===0){
-  	  		nextMove = freeCells.indexOf(i);
-  	  		break;
-  	  	}
-  	  }
-  	  break;
+      for (var i = 0; i <= 8; i+=4) {
+        if (cells[i]===0){
+          nextMove = freeCells.indexOf(i);
+          break;
+        }
+      }
+      break;
     }
     case (cells[2]+cells[4]+cells[6]===2):{ //if the second diagonal has two "X"
       for (var i = 2; i <= 6; i+=2) {
-  	  	if (cells[i]===0){
-  	  		nextMove = freeCells.indexOf(i);
-  	  		break;
-  	  	}
-  	  }	
+        if (cells[i]===0){
+          nextMove = freeCells.indexOf(i);
+          break;
+        }
+      } 
       break;
     }
     default:{
@@ -234,11 +321,7 @@ function computerMove(){ // logic for computer moves
       break;
     }
   }
-  cells[freeCells[nextMove]] = -1; // saves '-1' in current cell, if computer made move
-  lastMove = freeCells[nextMove];
-  cellId = "#" + freeCells[nextMove];
-  $(cellId).text("0");
-  freeCells.splice(nextMove,1);
+  return nextMove;
 }
 
 function checkWinner(){ //checks there is a winner or not
