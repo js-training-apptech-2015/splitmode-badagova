@@ -42,9 +42,9 @@
 
 #player1, #player2{
   font-size: 20pt;
-  padding: 5px;
+  padding: 5pt;
 }
 
 #score1, #score2{
-  margin: 15px;
+  margin: 15pt;
 }

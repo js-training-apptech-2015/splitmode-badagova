@@ -3,15 +3,18 @@ var cells, // array contain cells of the game field
     lastMove, // cell number where last move was made
     moveCounter, // total amount of moves were made from start a current round
     points1, points2, // player's points in currernt game
-    turn,  // shows who does next move
-    first; // shows who did first move in current round;
+    turn;  // shows who does next move
 
 $(document).ready(newGame);
+$(".cell").on("click", onePlayerMoves);
+$("#menu__newgame").bind("click", newGame);
+$("#menu__oneplayer").bind("click", changeModeOnePlayer);
+$("#menu__twoplayers").bind("click", changeModeTwoPlayers);
+
 
 function clearField(){ // prepeares field for new round
   $(".cell").empty();
-  first = !first; //changes the player who make a move first
-  turn = first;
+  turn = true;
   cells = [0,0,0,0,0,0,0,0,0];  
   freeCells = [0,1,2,3,4,5,6,7,8];
   moveCounter = 0;
@@ -22,17 +25,10 @@ function clearField(){ // prepeares field for new round
   } else {
     $("#player2").css("background-color", "yellow");
     $("#player1").css("background-color", "white");
-    computerEvent();
   }
 }
 
 function newGame(){
-  $(".cell").on("click", onePlayerMoves);
-  $("#menu__newgame").on("click", newGame);
-  $("#menu__oneplayer").on("click", changeModeOnePlayer);
-  $("#menu__twoplayers").on("click", changeModeTwoPlayers);
-  //$(document).on("computersTurn", computerEvent);
-  first = false;
   clearField();
   $("#score1").text("0");
   $("#score2").text("0");
@@ -41,14 +37,14 @@ function newGame(){
 }
 
 function changeModeTwoPlayers(evnt){
-  $(".cell").off("click", onePlayerMoves);
-  $(".cell").on("click", twoPlayersMoves);
+  $(".cell").unbind("click", onePlayerMoves);
+  $(".cell").bind("click", twoPlayersMoves);
   newGame();
 }
 
 function changeModeOnePlayer(evnt){
-  $(".cell").off("click", twoPlayersMoves);
-  $(".cell").on("click", onePlayerMoves);
+  $(".cell").unbind("click", twoPlayersMoves);
+  $(".cell").bind("click", onePlayerMoves);
   newGame();
 }
 
@@ -60,21 +56,25 @@ function twoPlayersMoves(evnt){ //is game logic for two players mode
   	  $(evnt.target).text("X");
       $("#player2").css("background-color", "yellow");
       $("#player1").css("background-color", "white");
+      moveCounter++;
   	  turn = false;
     } else {
   	  cells[Number(this.id)]=-1; // saves '-1' in current cell, if player 2 made move
   	  $(evnt.target).text("0");
       $("#player1").css("background-color", "yellow");
       $("#player2").css("background-color", "white");
+      moveCounter++;
   	  turn = true;
     }
-    checkWinner(); 	  
+    if (checkWinner()){
+      showWinner();
+    }
   }
 }
 
 function onePlayerMoves(evnt){ //is game logic for one player mode
-  if (turn){
-    lastMove = Number(this.id);
+  var win = false;
+  lastMove = Number(this.id);
     if (cells[lastMove]===0){ // checks if the current cell isn't occupied
       cells[Number(this.id)]=1; // saves '1' in current cell, if player made move
   	  $(evnt.target).text("X");
@@ -83,25 +83,21 @@ function onePlayerMoves(evnt){ //is game logic for one player mode
   	  freeCells.splice(freeCells.indexOf(Number(this.id)),1); // removes number of last move from array of available cells
       $("#player2").css("background-color", "yellow");
       $("#player1").css("background-color", "white");
-      var tr = checkWinner();
-      if (!tr){
-        computerEvent();
+      if (!checkWinner()){ // check if the player is a winner, else computer will move
+        computerMove();
+        $("#player1").css("background-color", "yellow");
+        $("#player2").css("background-color", "white");
+        turn = true;
+        moveCounter++; 
+        if (checkWinner()){ // check if the computer is a winner 
+          showWinner();
+        }
+      } else {
+        showWinner();
       }
-    }
-  }
+
+   }
 }
-
-function computerEvent(evnt){
-  //evnt.stopPropagation();
-  // if player didn't win computer make a move
-    $("#player1").css("background-color", "yellow");
-    $("#player2").css("background-color", "white");
-    computerMove();
-    turn = true;
-    moveCounter++;
-    checkWinner();
-  }
-
 function computerMove(){ // logic for computer moves
   var nextMove, // index of possible next move in cells array
       cellId, // string contains the id of cell for jQuery
@@ -234,19 +230,22 @@ function checkWinner(){ //checks there is a winner or not
   if ((Math.abs(cells[row*3]+cells[row*3+1]+cells[row*3+2])==3)||   // if sum of all elements in current    
   	  (Math.abs(cells[column]+cells[column+3]+cells[column+6])==3)||// row or column or one of diagonals
   	  (Math.abs(cells[0]+cells[4]+cells[8])==3)||                   // is 3 or -3, we have a winner
-      (Math.abs(cells[2]+cells[4]+cells[6])==3)){
-  	  showWinner();
-  	  return true;
-  }
-  if (moveCounter == 9){ //if we haven't winner even there is not available cell 
-  	showDraw();          //we have a draw    
+      (Math.abs(cells[2]+cells[4]+cells[6])==3)||
+      (moveCounter == 9)){
+    return true;
   }
   return false;
 }
 
 function showWinner(){ //shows which player won
   var message;
-  if(turn) {
+  if (moveCounter>=9){
+    points1++;
+    points2++;
+    $("#score1").text(points1);
+    $("#score2").text(points2);
+    message = "It's a draw!";
+  } else if(turn) {
   	points2 += 2;
   	$("#score2").text(points2);
   	message = "Player 0 won!";
@@ -256,18 +255,6 @@ function showWinner(){ //shows which player won
     message = "Player X won!";
   }
   if (confirm(message+" Do you want to start new game? (If you'll agree, you can't keep your score)")){
-    newGame();
-  } else {
-    clearField();
-  }
-}
-
-function showDraw(){ //shows if nobody won, each players get 1 point
-  points1++;
-  points2++;
-  $("#score1").text(points1);
-  $("#score2").text(points2);
-  if (confirm("It's a draw! Do you want to start new game? (If you'll agree, you can't keep your score)")){
     newGame();
   } else {
     clearField();
