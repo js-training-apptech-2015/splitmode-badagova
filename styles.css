@@ -6,13 +6,18 @@
   align-items: center;
 }
 
-.menu-item_invisible{
+.menu__item_invisible{
   visibility: hidden;
 }
 
-.field {
+.field{
   text-align: center;  
   margin: auto;
+}
+
+.field__game-token{
+  text-align: center;
+  padding-bottom: 10pt;
 }
 
 .score-field{
@@ -31,7 +36,7 @@
   vertical-align: middle;
   height: 9vw;
   width: 9vw;
-  font-size: 50pt;
+  font-size: 400%;
 }
 
 .points__elem{

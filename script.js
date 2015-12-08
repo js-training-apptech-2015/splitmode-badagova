@@ -3,10 +3,14 @@ var cells, // array contain cells of the game field
     lastMove, // cell number where last move was made
     moveCounter, // total amount of moves were made from start a current round
     points1, points2, // player's points in currernt game
-    mode,
-    level,
-    first,
-    turn;  // shows who does next move
+    mode, // boolean for not network modes, true - game with CPU, false - 2 players
+    level, // level of computer's complexity
+    first, // who makes first move in not network game
+    turn,  // shows who makes next move
+    networkGame, // an object for network game state
+    playerNumber, // who made first move in current network game
+	localPlayerNumber,// player number in current session, is used to player's name highlight
+    checkTimer;
 
 $(document).ready(newGame);
 $(".field-table__cell").on("click", twoPlayersMoves);
@@ -14,25 +18,49 @@ mode = false;
 $(".menu__item_new-game").on("click", newGame);
 $(".menu__item_one-player").on("click", changeModeOnePlayer);
 $(".menu__item_two-players").on("click", changeModeTwoPlayers);
+$(".menu__item_network").on("click", changeModeNetworkGame);
 $(".menu__item_easy").on("click", easyLevel);
 $(".menu__item_medium").on("click", mediumLevel);
 $(".menu__item_hard").on("click", hardLevel);
+$(".menu__item_join-game").on("click", joinNetworkGame);
 
-function changeModeTwoPlayers(evnt){
+function changeModeTwoPlayers(evnt){ 
   $(".field-table__cell").off("click", onePlayerMoves);
+  $(".field-table__cell").off("click", networkMoves);
   $(".field-table__cell").on("click", twoPlayersMoves);
-  $(".menu-item_invisible").css("visibility", "hidden");
+  $(".menu__item_level").css("visibility", "hidden");
+  if ($(".menu__item-join-game") !== null){
+	  $(".menu__item_join-game").remove();
+  }
   mode = false;
+  changeNames("Player #1", "Player #2");
   newGame();
 }
 
 function changeModeOnePlayer(evnt){
   $(".field-table__cell").off("click", twoPlayersMoves);
+  $(".field-table__cell").off("click", networkMoves);
   $(".field-table__cell").on("click", onePlayerMoves);
-  $(".menu-item_invisible").css("visibility", "visible");
+  $(".menu__item_level").css("visibility", "visible");
+  if ($(".menu__item-join-game") !== null){
+	  $(".menu__item_join-game").remove();
+  }
+  changeNames("You", "CPU");
   level = 2;
   mode = true;
   newGame();
+}
+
+function changeModeNetworkGame(evnt){
+  $('<li class="menu__item menu__item_join-game"><a href="#">join game</a></li>').insertBefore(".menu__item_mode");
+  $(".menu__item_join-game").on("click", joinNetworkGame);
+  $(".field-table__cell").off("click", twoPlayersMoves);
+  $(".field-table__cell").off("click", onePlayerMoves);
+  $(".field-table__cell").on("click", networkMoves);
+  $(".menu__item_new-game").off("click", newGame);
+  $(".menu__item_new-game").on("click", newNetworkGame)
+  clearScore();
+  changeNames("Player #1", "Player #2");
 }
 
 function easyLevel(evnt){
@@ -51,7 +79,7 @@ function hardLevel(evnt){
 }
 
 function clearField(){ // prepeares field for new round
-  $(".field-table__cell").empty();
+  fieldEmpty();
   first = !first;
   turn = first;
   cells = [0,0,0,0,0,0,0,0,0];  
@@ -59,15 +87,20 @@ function clearField(){ // prepeares field for new round
   moveCounter = 0;
   lastMove = undefined;
   if (turn) {
-    $(".points__elem_first-player-name").css("background-color", "yellow");
-    $(".points__elem_second-player-name").css("background-color", "white");
+    firstPlayerTurn();
   } else {
-    $(".points__elem_second-player-name").css("background-color", "yellow");
-    $(".points__elem_first-player-name").css("background-color", "white");
-    if (mode) {
+    secondPlayerTurn();
+	if (mode) {
       setTimeout(onePlayerMoves,0);
     }
   }
+}
+
+function clearFieldNetwork(){ // prepeares field for new round
+  fieldEmpty();
+  cells = [0,0,0,0,0,0,0,0,0];  
+  moveCounter = 0;
+  lastMove = undefined;
 }
 
 function newGame(){
@@ -75,25 +108,244 @@ function newGame(){
   clearField();
   $(".points__elem_first-player-points").text("0");
   $(".points__elem_second-player-points").text("0");
-  points1 = 0;
-  points2 = 0;
+  clearScore();
 }
 
-function twoPlayersMoves(evnt){ //is game logic for two players mode
+function newNetworkGame(){
+  playerNumber = 1;
+  if (localPlayerNumber === undefined){
+	localPlayerNumber = 1;
+	changeNames("You", "Player #2");
+  } 
+  clearFieldNetwork();
+  if (localPlayerNumber === 1){
+	firstPlayerTurn();
+  } else {
+	secondPlayerTurn();
+  }
+  var xhr = new XMLHttpRequest(),
+      body = '{"type": 0, "password": "abc"}';
+  xhr.open('POST','http://aqueous-ocean-2864.herokuapp.com/games/', true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.onload = function(){
+    networkGame = JSON.parse(this.response);
+	$(".field__game-token").text("Current game ID: " + networkGame.token);
+  };
+  xhr.onerror = function(){
+    console.log(this.status);
+  }; 
+  xhr.send(body);
+}
+
+function joinNetworkGame(){
+  playerNumber = 2;
+  if (localPlayerNumber === undefined){
+	localPlayerNumber = 2;
+	changeNames("Player #1", "You");
+  } 
+  if (localPlayerNumber === 2){
+	firstPlayerTurn();
+  } else {
+	secondPlayerTurn();
+  }
+  var gameToken = prompt("Please, insert the game ID, which you want to join!"),
+      xhr = new XMLHttpRequest();
+  xhr.open('GET','https://aqueous-ocean-2864.herokuapp.com/games/' + gameToken, true);
+  xhr.onload = function(){
+    networkGame = JSON.parse(this.response);
+    $(".field__game-token").text("Current game ID: " + networkGame.token);
+	if (networkGame.field1 !== 0){
+		renderNetworkMove();
+	} else {
+      waitServer();
+	}
+  };
+  xhr.onerror = function(){
+    console.log(this.status);
+  };
+  xhr.send(null);
+}
+
+/*function showExistingGame(){
+  var xhr = new XMLHttpRequest(),
+      resp;
+  xhr.open('GET','https://aqueous-ocean-2864.herokuapp.com/games', true);
+  xhr.onload = function(){
+    console.log(this.response);
+  };
+  xhr.onerror = function(){
+    console.log(this.status);
+  };
+  xhr.send(null);
+}*/
+
+function checkNetworkGameState(gameToken){
+  var xhr = new XMLHttpRequest();
+  var resp;
+  xhr.open('GET','https://aqueous-ocean-2864.herokuapp.com/games/' + gameToken, true);
+  xhr.onload = function(){
+    networkGame = JSON.parse(this.response);
+  };
+  xhr.onerror = function(){
+    console.log(this.status);
+  };
+  xhr.send(null);
+}
+
+function makeNetworkMove (gameToken, pos){
+  var xhr = new XMLHttpRequest(),
+      body = '{"player": ' + playerNumber + ', "position": ' + pos +'}',
+      resp; 
+  xhr.open('PUT','https://aqueous-ocean-2864.herokuapp.com/games/' + gameToken, true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.onload = function(){
+    networkGame = JSON.parse(this.response);
+    waitServer();
+  };
+  xhr.onerror = function(){
+    console.log(this.status);
+  };
+  xhr.send(body);
+}
+
+function networkMoves(evnt){
+  switch (networkGame.state){
+    case "first-player-turn":{
+      if (playerNumber == 1){
+        lastMove = Number(this.id);
+        makeNetworkMove(networkGame.token, lastMove);
+        cells[lastMove] = 1;
+        if (localPlayerNumber === 1){
+	      secondPlayerTurn();
+		} else {
+		  firstPlayerTurn();
+		}
+      } else {
+        alert("Ooops! It's not your turn.");  
+      }
+      break;
+    }
+    case "second-player-turn":{
+      if (playerNumber == 2){
+        lastMove = Number(this.id);
+        makeNetworkMove(networkGame.token, lastMove);
+        cells[lastMove] = -1;
+        if (localPlayerNumber === 2){
+	      firstPlayerTurn();
+		} else {
+		  secondPlayerTurn();
+		}
+      } else {
+        alert("Ooops! It's not your turn.");
+      }
+      break;
+    }
+    default: {
+      alert("You must start a new game or join one!");
+      break;
+    }
+  }
+  if (lastMove !== undefined){	
+    if (cells[lastMove] > 0){
+      $("#" + lastMove).text("X");
+    } else {
+      $("#" + lastMove).text("0");
+    }
+  }
+}
+ 
+function renderNetworkMove(){
+  var cellNumber;
+  moveCounter++;
+  switch (true){
+    case ((networkGame.state === "second-player-turn")&&(playerNumber === 2)):{
+      for (var i = 1; i <= Math.pow(2,cells.length-1); i = i * 2){
+        cellNumber = Math.log2(i);
+        if (((networkGame.field1 & i) > 0) && (cells[cellNumber] == 0)){
+          cells[cellNumber] = 1; 
+          break;
+        }
+      }
+	  if (localPlayerNumber === 2){
+	    secondPlayerTurn();
+	  } else {
+		firstPlayerTurn();
+	  }
+	  break;
+    } 
+    case ((networkGame.state === "first-player-turn")&&(playerNumber === 1)):{
+      for (var i = 1; i <= Math.pow(2,cells.length-1); i = i * 2){
+        cellNumber = Math.log2(i);
+        if (((networkGame.field2 & i) > 0) && (cells[cellNumber] == 0)){
+          cells[cellNumber] = -1; 
+          break;
+        }
+      }
+	  if (localPlayerNumber === 1){
+	      firstPlayerTurn();
+		} else {
+		  secondPlayerTurn();
+		}
+      break;
+    }
+  }
+  if (cells[cellNumber] > 0){
+    $("#" + cellNumber).text("X");
+  } else if (cells[cellNumber] < 0){
+    $("#" + cellNumber).text("0");
+  }
+}
+
+function waitServer(){
+  if ((networkGame.state === "first-player-wins")||
+     (networkGame.state === "second-player-wins")||
+     (networkGame.state === "tie")){
+    showNetworkWinner();
+  } else {
+    var lastState = networkGame.state;
+    checkTimer = setInterval(function(){
+      checkNetworkGameState(networkGame.token);
+      if (networkGame.state != lastState){
+        clearInterval(checkTimer);
+        if ((networkGame.state === "first-player-wins")||
+           (networkGame.state === "second-player-wins")||
+           (networkGame.state === "tie")){
+          showNetworkWinner();     
+        } else {
+		  renderNetworkMove();
+		}
+      }
+    }, 500);
+  }
+}
+
+/*function deleteGame (gameToken){
+  var xhr = new XMLHttpRequest(),
+      resp;
+  xhr.open('DELETE','http://aqueous-ocean-2864.herokuapp.com/games/' + gameToken, true);
+  xhr.setRequestHeader('Content-Type', 'application/json');
+  xhr.onload = function(){
+    console.log(this.response);
+  };
+  xhr.onerror = function(){
+    console.log(this.status);
+  }; 
+  xhr.send();
+}*/
+
+function twoPlayersMoves(evnt){ //game logic for two players mode
   lastMove = Number(this.id);
   if (cells[lastMove]===0){ // checks if the current cell isn't occupied
     if(turn){
       cells[Number(this.id)]=1; // saves '1' in current cell, if player 1 made move
   	  $(evnt.target).text("X");
-      $(".points__elem_second-player-name").css("background-color", "yellow");
-      $(".points__elem_first-player-name").css("background-color", "white");
-      moveCounter++;
+      secondPlayerTurn();
+	  moveCounter++;
   	  turn = false;
     } else {
   	  cells[Number(this.id)]=-1; // saves '-1' in current cell, if player 2 made move
   	  $(evnt.target).text("0");
-      $(".points__elem_first-player-name").css("background-color", "yellow");
-      $(".points__elem_second-player-name").css("background-color", "white");
+      firstPlayerTurn();
       moveCounter++;
   	  turn = true;
     }
@@ -103,7 +355,7 @@ function twoPlayersMoves(evnt){ //is game logic for two players mode
   }
 }
 
-function onePlayerMoves(evnt){ //is game logic for one player mode
+function onePlayerMoves(evnt){ //game logic for one player mode
   var win = false;
   lastMove = Number(this.id);
   if (turn){
@@ -113,8 +365,7 @@ function onePlayerMoves(evnt){ //is game logic for one player mode
   	  moveCounter++;
       turn = false;
   	  freeCells.splice(freeCells.indexOf(Number(this.id)),1); // removes number of last move from array of available cells
-      $(".points__elem_second-player-name").css("background-color", "yellow");
-      $(".points__elem_first-player-name").css("background-color", "white");
+      secondPlayerTurn();
       if (!checkWinner()){ // check if the player is a winner, else computer will move
         switch (level){
           case 1: {
@@ -130,8 +381,7 @@ function onePlayerMoves(evnt){ //is game logic for one player mode
             break;
           }
         }
-        $(".points__elem_first-player-name").css("background-color", "yellow");
-        $(".points__elem_second-player-name").css("background-color", "white");
+        firstPlayerTurn();
         turn = true;
         moveCounter++; 
         if (checkWinner()){ // check if the computer is a winner 
@@ -156,14 +406,13 @@ function onePlayerMoves(evnt){ //is game logic for one player mode
         break;
       }
     }
-    $(".points__elem_first-player-name").css("background-color", "yellow");
-    $(".points__elem_second-player-name").css("background-color", "white");
+    firstPlayerTurn();
     turn = true;
     moveCounter++; 
   }
 }
 
-function computerMoveEasy(){
+function computerMoveEasy(){ // logic for computer moves, when level is easy
   var cellId, 
       nextMove = Math.floor(Math.random()*(9-moveCounter));
   cells[freeCells[nextMove]] = -1; // saves '-1' in current cell, if computer made move
@@ -173,7 +422,7 @@ function computerMoveEasy(){
   freeCells.splice(nextMove,1);
 }
 
-function computerMoveMedium(){ // logic for computer moves
+function computerMoveMedium(){ // logic for computer moves, when level is medium
   var nextMove = computerBaseLogic(), // index of possible next move in cells array
       cellId; // string contains the id of cell for jQuery
   cells[freeCells[nextMove]] = -1; // saves '-1' in current cell, if computer made move
@@ -183,7 +432,7 @@ function computerMoveMedium(){ // logic for computer moves
   freeCells.splice(nextMove,1);
 }
 
-function computerMoveHard(){
+function computerMoveHard(){ // logic for computer moves, when level is hard
   var nextMove, // index of possible next move in cells array
       cellId; // string contains the id of cell for jQuery
   if ((moveCounter < 2)&&(cells[4] == 0)){ // checks if the central cell is free
@@ -203,7 +452,7 @@ function computerMoveHard(){
   freeCells.splice(nextMove,1);
 }
 
-function computerBaseLogic(){
+function computerBaseLogic(){// common part of computer logic for hard and medium level
   var nextMove,
       row = Math.floor(lastMove/3), //number of row where last move was made
       column = lastMove%3; //number of column where last move was made
@@ -354,9 +603,86 @@ function showWinner(){ //shows which player won
     $(".points__elem_first-player-points").text(points1);
     message = "Player X won!";
   }
-  if (confirm(message+" Do you want to start new game? (If you'll agree, you can't keep your score)")){
+  if (confirm(message + " Do you want to start new game? (If you'll agree, you can't keep your score)")){
     newGame();
   } else {
     clearField();
   }
+}
+
+function showNetworkWinner(){ //shows which player won in network mode
+  var message;
+  switch (networkGame.state){
+    case "tie":{
+      points1++;
+      points2++;
+      $(".points__elem_first-player-points").text(points1);
+      $(".points__elem_second-player-points").text(points2);
+      message = "It's a draw!";
+      break;
+    } 
+    case "first-player-wins":{
+      if (localPlayerNumber === playerNumber) {
+		points1 += 2;
+        $(".points__elem_first-player-points").text(points1);
+	  } else {
+	    points2 += 2;
+        $(".points__elem_second-player-points").text(points2);	  
+	  }
+      if (playerNumber === 1 ){
+        message = "You're won!";
+      } else {
+        message = "You're lose...";
+      }
+      break;
+    } 
+    case "second-player-wins":{
+      if (localPlayerNumber === playerNumber) {
+		points2 += 2;
+        $(".points__elem_second-player-points").text(points2);
+	  } else {
+		points1 += 2;
+        $(".points__elem_first-player-points").text(points1);
+	  }
+      if (playerNumber === 2 ){
+        message = "You're won!";
+      } else {
+        message = "You're lose...";
+      }
+      break;
+    }
+  }
+  if (confirm(message + " Do you want to start new game?")){
+    newNetworkGame();
+  } else {
+    clearFieldNetwork();
+  }
+  //clearScore();
+}
+
+function firstPlayerTurn (){
+  $(".points__elem_first-player-name").css("background-color", "yellow");
+  $(".points__elem_second-player-name").css("background-color", "white");
+}
+
+function secondPlayerTurn (){
+  $(".points__elem_second-player-name").css("background-color", "yellow");
+  $(".points__elem_first-player-name").css("background-color", "white");
+}
+
+function fieldEmpty(){
+  $(".field-table__cell").empty();
+  $(".field__game-token").empty();
+}
+
+function clearScore(){
+  points1 = 0;
+  points2 = 0;
+  $(".points__elem_first-player-points").text(points1);
+  $(".points__elem_second-player-points").text(points2);
+}
+
+function changeNames(name1, name2){
+  $(".points__elem_first-player-name").text(name1);
+  $(".points__elem_second-player-name").text(name2);
 }
